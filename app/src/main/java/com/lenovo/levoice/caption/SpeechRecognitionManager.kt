@@ -31,7 +31,7 @@ class SpeechRecognitionManager(private val context: Context) {
     val recognitionError: StateFlow<String?> = _recognitionError
 
     init {
-        if (SpeechRecognizer.isRecognitionAvailable(context)) {
+        if (SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
             setupRecognitionListener()
         } else {

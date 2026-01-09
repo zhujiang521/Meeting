@@ -1,6 +1,7 @@
 package com.lenovo.levoice.caption
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
@@ -145,6 +146,10 @@ class MainActivity : ComponentActivity() {
                             onStartCapture = { checkPermissionsAndStart() },
                             onStopCapture = { stopCapture() },
                             onShowRecordings = { viewModel.setShowRecordingsList(true) },
+                            onShowGallery = {
+                                val intent = Intent(this@MainActivity, GalleryActivity::class.java)
+                                startActivity(intent)
+                            },
                             modifier = Modifier.padding(innerPadding)
                         )
                     }

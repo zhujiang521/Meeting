@@ -29,6 +29,7 @@ fun AudioVisualizerScreen(
     onStartCapture: () -> Unit,
     onStopCapture: () -> Unit,
     onShowRecordings: () -> Unit,
+    onShowGallery: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -133,6 +134,19 @@ fun AudioVisualizerScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                OutlinedButton(
+                    onClick = onShowGallery,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(
+                        text = "图片展示",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     } else {
@@ -224,6 +238,19 @@ fun AudioVisualizerScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+
+            OutlinedButton(
+                onClick = onShowGallery,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text(
+                    text = "图片展示",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
