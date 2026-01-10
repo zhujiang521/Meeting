@@ -8,7 +8,6 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -121,6 +120,8 @@ class OverlayAnimationView @JvmOverloads constructor(
 
         // 标记粒子是否已初始化
         var particlesInitialized = false
+        // 标记缓存是否已预创建
+        var cachePreCreated = false
 
         currentAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 500L // 入场动画固定 500ms
@@ -128,11 +129,22 @@ class OverlayAnimationView @JvmOverloads constructor(
             addUpdateListener { animator ->
                 animationProgress = animator.animatedValue as Float
 
-                // 在第一帧动画时初始化粒子（此时 View 已经完成布局）
+                // 在第一帧动画时初始化粒子和缓存（此时 View 已经完成布局）
                 if (!particlesInitialized && width > 0 && height > 0) {
                     initParticles()
                     startParticleAnimation()
                     particlesInitialized = true
+                }
+
+                // 预创建缓存，避免第一次绘制时创建导致动画卡顿
+                if (!cachePreCreated && width > 0 && height > 0) {
+                    // 在后台线程预创建缓存（不阻塞动画）
+                    post {
+                        if (cachedGlowBitmap == null) {
+                            createCachedBitmaps(255)
+                        }
+                    }
+                    cachePreCreated = true
                 }
 
                 invalidate()
@@ -552,20 +564,25 @@ class OverlayAnimationView @JvmOverloads constructor(
         drawArcBackground(canvas, alpha)
 
         // 再绘制波纹效果（从顶部中间扩散）
-        val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = android.graphics.RadialGradient(
-                centerX, centerY, currentRadius * 0.8f,
-                intArrayOf(
-                    Color.argb((animationProgress * 150).toInt(), 100, 200, 255),
-                    Color.argb((animationProgress * 50).toInt(), 60, 140, 200)
-                ),
-                floatArrayOf(0.7f, 1f),
-                android.graphics.Shader.TileMode.CLAMP
-            )
-            style = Paint.Style.STROKE
-            strokeWidth = 6f
+        // 防止 radius 为 0 导致 IllegalArgumentException
+        val rippleRadius = (currentRadius * 0.8f).coerceAtLeast(1f)
+
+        if (rippleRadius > 1f && animationProgress > 0.01f) {
+            val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = android.graphics.RadialGradient(
+                    centerX, centerY, rippleRadius,
+                    intArrayOf(
+                        Color.argb((animationProgress * 150).toInt(), 100, 200, 255),
+                        Color.argb((animationProgress * 50).toInt(), 60, 140, 200)
+                    ),
+                    floatArrayOf(0.7f, 1f),
+                    android.graphics.Shader.TileMode.CLAMP
+                )
+                style = Paint.Style.STROKE
+                strokeWidth = 6f
+            }
+            canvas.drawCircle(centerX, centerY, rippleRadius, ripplePaint)
         }
-        canvas.drawCircle(centerX, centerY, currentRadius * 0.8f, ripplePaint)
 
         canvas.restore()
     }
