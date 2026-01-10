@@ -231,13 +231,19 @@ class OverlayAnimationView @JvmOverloads constructor(
     private fun startParticleAnimation() {
         particleAnimator?.cancel()
         particleTime = 0f
+        var lastFrameTime = System.nanoTime()
 
         particleAnimator = ValueAnimator.ofFloat(0f, Float.MAX_VALUE).apply {
             duration = Long.MAX_VALUE
             repeatCount = ValueAnimator.INFINITE
             addUpdateListener {
-                particleTime += 0.016f // 约60fps
-                updateParticles()
+                // 使用实际帧间隔时间，确保速度均匀
+                val currentTime = System.nanoTime()
+                val deltaTime = ((currentTime - lastFrameTime) / 1_000_000_000f).coerceIn(0f, 0.1f) // 秒
+                lastFrameTime = currentTime
+
+                particleTime += deltaTime
+                updateParticles(deltaTime)
                 invalidate()
             }
             start()
@@ -247,10 +253,11 @@ class OverlayAnimationView @JvmOverloads constructor(
     /**
      * 更新粒子位置
      */
-    private fun updateParticles() {
+    private fun updateParticles(deltaTime: Float) {
         particles.forEachIndexed { index, particle ->
-            // 向下滑落运动
-            particle.y += particle.speed
+            // 向下滑落运动（基于实际时间步长，确保速度均匀）
+            val pixelsPerSecond = particle.speed * 60f // speed 原本是"每帧像素"，转换为"每秒像素"
+            particle.y += pixelsPerSecond * deltaTime
 
             // 轻微的左右摆动
             particle.x += sin(particleTime * 2f) * 0.5f
@@ -313,7 +320,7 @@ class OverlayAnimationView @JvmOverloads constructor(
     }
 
     /**
-     * 绘制粒子系统（优化版本）
+     * 绘制粒子系统（优化版本，带底部淡出效果）
      */
     private fun drawParticles(canvas: Canvas) {
         if (particles.isEmpty()) return
@@ -324,10 +331,25 @@ class OverlayAnimationView @JvmOverloads constructor(
             // 50%实心，50%空心
             val isFilled = index % 3 != 0
 
+            // 计算当前X位置对应的弧线高度
+            val normalizedX = (particle.x / width.toFloat() - 0.5f) * 2f
+            val arcHeight = height * (1f - normalizedX * normalizedX)
+
+            // 计算底部淡出因子（距离底部越近，透明度越低）
+            val fadeZoneHeight = particle.size * 3 // 淡出区域高度为粒子大小的3倍
+            val distanceToBottom = arcHeight - particle.y
+            val fadeAlpha = if (distanceToBottom < fadeZoneHeight) {
+                // 在淡出区域内，线性衰减
+                (distanceToBottom / fadeZoneHeight).coerceIn(0f, 1f)
+            } else {
+                1f
+            }
+
             // 复用 Paint 对象
             val particlePaint = if (isFilled) particleFillPaint else particleStrokePaint
             particlePaint.color = particle.color
-            particlePaint.alpha = ((particle.alpha * globalAlpha).toInt()).coerceIn(0, 255)
+            // 组合全局透明度和淡出透明度
+            particlePaint.alpha = ((particle.alpha * globalAlpha * fadeAlpha).toInt()).coerceIn(0, 255)
 
             // 优化：使用分档的模糊滤镜，减少对象创建
             val sizeKey = ((particle.size / 5).toInt() * 5).toFloat().coerceIn(15f, 35f)
@@ -473,37 +495,44 @@ class OverlayAnimationView @JvmOverloads constructor(
         }
         glowCanvas.drawRect(0f, 0f, w, h * 2f, radialAccentPaint)
 
-        // 创建弧形遮罩
+        // 创建弧形遮罩（优化底部中间的渐变过渡，降低整体高度）
         cachedMaskBitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ALPHA_8)
         val maskCanvas = Canvas(cachedMaskBitmap!!)
-
         val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-        for (y in 0 until height) {
-            val progress = y / h
+        // 限制背景高度为View高度的70%
+        val effectiveHeight = (height * 0.7f).toInt()
+        for (y in 0 until effectiveHeight) {
+            val progress = y / effectiveHeight.toFloat()
             val normalizedHeight = 1f - progress
             val arcWidth = if (normalizedHeight > 0) {
-                kotlin.math.sqrt(normalizedHeight) * w / 2f
+                // 恢复弧形宽度系数为 w/2
+                sqrt(normalizedHeight) * w / 2f
             } else {
                 0f
             }
 
-            val baseAlpha = (1f - progress * progress).coerceIn(0f, 1f)
+            // 进一步优化底部透明度衰减：使用四次方曲线让底部过渡更加柔和
+            val baseAlpha = (1f - progress * progress * progress * progress).coerceIn(0f, 1f)
             val left = centerX - arcWidth
             val right = centerX + arcWidth
 
             if (arcWidth > 0) {
+                // 进一步优化水平渐变：增加到10个节点，边缘过渡更加细腻
                 val rowGradient = android.graphics.LinearGradient(
                     left, y.toFloat(), right, y.toFloat(),
                     intArrayOf(
                         Color.argb((baseAlpha * 255).toInt(), 255, 255, 255),
                         Color.argb((baseAlpha * 0.95f * 255).toInt(), 255, 255, 255),
-                        Color.argb((baseAlpha * 0.75f * 255).toInt(), 255, 255, 255),
-                        Color.argb((baseAlpha * 0.45f * 255).toInt(), 255, 255, 255),
-                        Color.argb((baseAlpha * 0.20f * 255).toInt(), 255, 255, 255),
-                        Color.argb((baseAlpha * 0.05f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.85f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.72f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.55f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.38f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.22f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.10f * 255).toInt(), 255, 255, 255),
+                        Color.argb((baseAlpha * 0.03f * 255).toInt(), 255, 255, 255),
                         Color.argb(0, 255, 255, 255)
                     ),
-                    floatArrayOf(0f, 0.3f, 0.5f, 0.7f, 0.85f, 0.95f, 1f),
+                    floatArrayOf(0f, 0.20f, 0.38f, 0.54f, 0.68f, 0.80f, 0.88f, 0.94f, 0.98f, 1f),
                     android.graphics.Shader.TileMode.CLAMP
                 )
                 maskPaint.shader = rowGradient
