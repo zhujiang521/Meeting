@@ -64,6 +64,20 @@ class OverlayService : Service() {
                 true
             }
         }
+
+        /**
+         * 检查服务是否正在运行
+         */
+        fun isServiceRunning(context: Context): Boolean {
+            val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            @Suppress("DEPRECATION")
+            for (service in manager.getRunningServices(Integer.MAX_VALUE)) {
+                if (OverlayService::class.java.name == service.service.className) {
+                    return true
+                }
+            }
+            return false
+        }
     }
 
     private var windowManager: WindowManager? = null

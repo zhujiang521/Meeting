@@ -30,11 +30,12 @@ fun OverlaySettingsScreen(
     var hasOverlayPermission by remember {
         mutableStateOf(OverlayService.checkOverlayPermission(context))
     }
-    var isServiceRunning by remember { mutableStateOf(false) }
+    var isServiceRunning by remember { mutableStateOf(OverlayService.isServiceRunning(context)) }
 
-    // 刷新权限状态
+    // 刷新权限状态和服务运行状态
     LaunchedEffect(Unit) {
         hasOverlayPermission = OverlayService.checkOverlayPermission(context)
+        isServiceRunning = OverlayService.isServiceRunning(context)
     }
 
     Scaffold(
@@ -48,11 +49,11 @@ fun OverlaySettingsScreen(
                 }
             )
         }
-    ) { paddingValues ->
+    ) { _ ->
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(top = 56.dp)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
