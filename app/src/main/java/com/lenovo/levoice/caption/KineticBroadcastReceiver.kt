@@ -26,7 +26,7 @@ class KineticBroadcastReceiver : BroadcastReceiver() {
         // 解析广播携带的参数
         val config = parseAnimationConfig(intent)
 
-        Log.d(TAG, "Animation config: type=${config.animationType}, duration=${config.durationMillis}ms")
+        Log.d(TAG, "Animation config: duration=${config.durationMillis}ms, height=${config.heightDp}dp")
 
         // 通知 OverlayService 显示动效
         val serviceIntent = Intent(context, OverlayService::class.java).apply {
@@ -45,21 +45,19 @@ class KineticBroadcastReceiver : BroadcastReceiver() {
      * 从 Intent 中解析动效配置
      */
     private fun parseAnimationConfig(intent: Intent): AnimationConfig {
-        val animationTypeString = intent.getStringExtra(AnimationConfig.EXTRA_ANIMATION_TYPE)
         val duration = intent.getLongExtra(AnimationConfig.EXTRA_DURATION, 3000L)
         val backgroundColor = intent.getIntExtra(
             AnimationConfig.EXTRA_BACKGROUND_COLOR,
             0x80000000.toInt()
         )
-        val message = intent.getStringExtra(AnimationConfig.EXTRA_MESSAGE)
         val heightDp = intent.getIntExtra(AnimationConfig.EXTRA_HEIGHT_DP, 110) // 默认110dp
+        val particleSpeed = intent.getFloatExtra(AnimationConfig.EXTRA_PARTICLE_SPEED, 6.5f) // 默认6.5
 
         return AnimationConfig(
-            animationType = AnimationConfig.parseAnimationType(animationTypeString),
             durationMillis = duration,
             backgroundColor = backgroundColor,
-            message = message,
-            heightDp = heightDp
+            heightDp = heightDp,
+            particleSpeed = particleSpeed
         )
     }
 }

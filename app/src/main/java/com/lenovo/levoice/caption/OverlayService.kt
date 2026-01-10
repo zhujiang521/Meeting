@@ -114,12 +114,15 @@ class OverlayService : Service() {
         }
 
         try {
-            // 如果悬浮窗已存在且正在显示，先移除
-            if (isOverlayShowing) {
-                removeOverlay()
+            // 如果悬浮窗已存在，复用并更新配置
+            if (isOverlayShowing && overlayView != null) {
+                // 直接在现有视图上显示新动画
+                overlayView?.showAnimation(config)
+                Log.d(TAG, "Reusing existing overlay view with new animation")
+                return
             }
 
-            // 创建悬浮窗视图
+            // 创建新的悬浮窗视图
             overlayView = OverlayAnimationView(this).apply {
                 onDismissListener = {
                     removeOverlay()

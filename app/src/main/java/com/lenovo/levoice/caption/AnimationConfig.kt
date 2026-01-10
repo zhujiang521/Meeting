@@ -5,49 +5,21 @@ import kotlinx.parcelize.Parcelize
 
 /**
  * 动效配置数据类
- * 用于定义悬浮窗动效的类型、持续时间等参数
+ * 用于定义悬浮窗动效的持续时间、背景颜色、高度和粒子速度等参数
  */
 @Parcelize
 data class AnimationConfig(
-    val animationType: AnimationType = AnimationType.FADE,
     val durationMillis: Long = 3000L,
     val backgroundColor: Int = 0x80000000.toInt(), // 默认半透明黑色
-    val message: String? = null,
-    val heightDp: Int = 110 // 悬浮窗高度（dp），默认110dp
+    val heightDp: Int = 110, // 悬浮窗高度（dp），默认110dp
+    val particleSpeed: Float = 6.5f // 粒子下落速度（像素/帧），默认6.5，范围4-9
 ) : Parcelable {
 
     companion object {
         // 广播 Intent Extra 键名常量
-        const val EXTRA_ANIMATION_TYPE = "animation_type"
         const val EXTRA_DURATION = "duration"
         const val EXTRA_BACKGROUND_COLOR = "background_color"
-        const val EXTRA_MESSAGE = "message"
         const val EXTRA_HEIGHT_DP = "height_dp"
-
-        // 动效类型字符串常量
-        const val TYPE_FADE = "fade"
-        const val TYPE_SLIDE = "slide"
-        const val TYPE_RIPPLE = "ripple"
-
-        /**
-         * 从字符串解析动效类型
-         */
-        fun parseAnimationType(typeString: String?): AnimationType {
-            return when (typeString?.lowercase()) {
-                TYPE_FADE -> AnimationType.FADE
-                TYPE_SLIDE -> AnimationType.SLIDE
-                TYPE_RIPPLE -> AnimationType.RIPPLE
-                else -> AnimationType.FADE // 默认
-            }
-        }
+        const val EXTRA_PARTICLE_SPEED = "particle_speed"
     }
-}
-
-/**
- * 动效类型枚举
- */
-enum class AnimationType {
-    FADE,       // 淡入淡出
-    SLIDE,      // 从顶部滑入
-    RIPPLE      // 波纹扩散
 }

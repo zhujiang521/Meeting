@@ -36,6 +36,9 @@ class OverlayAnimationView @JvmOverloads constructor(
     private var particleAnimator: ValueAnimator? = null
     private var particleTime = 0f
 
+    // 用于存储待执行的自动消失回调
+    private var dismissRunnable: Runnable? = null
+
     var onDismissListener: (() -> Unit)? = null
 
     // 性能优化：缓存 Bitmap 和 Paint 对象
@@ -116,7 +119,10 @@ class OverlayAnimationView @JvmOverloads constructor(
             lastBackgroundColor = config.backgroundColor
         }
 
+        // 取消之前的动画和待执行的自动消失回调
         currentAnimator?.cancel()
+        dismissRunnable?.let { removeCallbacks(it) }
+        dismissRunnable = null
 
         // 标记粒子是否已初始化
         var particlesInitialized = false
@@ -152,9 +158,11 @@ class OverlayAnimationView @JvmOverloads constructor(
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     // 入场动画结束后，等待指定时长，然后自动消失
-                    postDelayed({
+                    // 使用 Runnable 对象，以便后续可以取消
+                    dismissRunnable = Runnable {
                         dismissWithAnimation()
-                    }, config.durationMillis)
+                    }
+                    postDelayed(dismissRunnable!!, config.durationMillis)
                 }
             })
             start()
@@ -191,7 +199,9 @@ class OverlayAnimationView @JvmOverloads constructor(
             // 粒子大小：5-25dp（不受悬浮窗高度限制）
             val size = Random.nextFloat() * 20 + 15f
 
-            val speed = Random.nextFloat() * 5 + 4f // 下落速度 4-9（加快）
+            // 使用配置的粒子速度，加上随机偏移（±20%）
+            val speedVariation = config.particleSpeed * 0.2f
+            val speed = config.particleSpeed + (Random.nextFloat() * 2 - 1) * speedVariation
             val angle = 0f // 不需要角度
             val rotationSpeed = 0f // 正方形不旋转
 
@@ -285,8 +295,11 @@ class OverlayAnimationView @JvmOverloads constructor(
      * 带动画的消失
      */
     private fun dismissWithAnimation() {
+        // 取消所有动画和待执行的回调
         currentAnimator?.cancel()
         particleAnimator?.cancel()
+        dismissRunnable?.let { removeCallbacks(it) }
+        dismissRunnable = null
 
         currentAnimator = ValueAnimator.ofFloat(animationProgress, 0f).apply {
             duration = 300L // 退场动画固定 300ms
@@ -309,13 +322,10 @@ class OverlayAnimationView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        when (config.animationType) {
-            AnimationType.FADE -> drawFadeAnimation(canvas)
-            AnimationType.SLIDE -> drawSlideAnimation(canvas)
-            AnimationType.RIPPLE -> drawRippleAnimation(canvas)
-        }
+        // 只使用淡入淡出动效
+        drawFadeAnimation(canvas)
 
-        // 绘制粒子效果（在所有动画类型上都显示）
+        // 绘制粒子效果
         drawParticles(canvas)
     }
 
@@ -336,11 +346,14 @@ class OverlayAnimationView @JvmOverloads constructor(
             val arcHeight = height * (1f - normalizedX * normalizedX)
 
             // 计算底部淡出因子（距离底部越近，透明度越低）
-            val fadeZoneHeight = particle.size * 3 // 淡出区域高度为粒子大小的3倍
+            // 增大淡出区域到粒子大小的4倍，使用平滑的三次方曲线
+            val fadeZoneHeight = particle.size * 4f
             val distanceToBottom = arcHeight - particle.y
             val fadeAlpha = if (distanceToBottom < fadeZoneHeight) {
-                // 在淡出区域内，线性衰减
-                (distanceToBottom / fadeZoneHeight).coerceIn(0f, 1f)
+                // 使用三次方曲线实现更平滑的淡出效果
+                val progress = (distanceToBottom / fadeZoneHeight).coerceIn(0f, 1f)
+                // 三次方曲线：从1平滑过渡到0
+                progress * progress * progress
             } else {
                 1f
             }
@@ -499,8 +512,8 @@ class OverlayAnimationView @JvmOverloads constructor(
         cachedMaskBitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ALPHA_8)
         val maskCanvas = Canvas(cachedMaskBitmap!!)
         val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-        // 限制背景高度为View高度的70%
-        val effectiveHeight = (height * 0.7f).toInt()
+        // 限制背景高度为View高度的60%
+        val effectiveHeight = (height * 0.6f).toInt()
         for (y in 0 until effectiveHeight) {
             val progress = y / effectiveHeight.toFloat()
             val normalizedHeight = 1f - progress

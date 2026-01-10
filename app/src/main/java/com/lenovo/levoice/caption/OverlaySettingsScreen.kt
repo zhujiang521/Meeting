@@ -74,18 +74,19 @@ fun OverlaySettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "启用后，本应用将在后台运行服务，监听广播消息。当接收到 com.zui.action.SHOW_KINETIC 广播时，会在屏幕顶部显示动效。",
+                        text = "启用后，本应用将在后台运行服务，监听广播消息。当接收到 com.zui.action.SHOW_KINETIC 广播时，会在屏幕顶部显示淡入淡出动效。",
                         fontSize = 14.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "支持的动效类型：",
+                        text = "动效特性：",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(text = "• 淡入淡出 (fade)", fontSize = 13.sp)
-                    Text(text = "• 从顶部滑入 (slide)", fontSize = 13.sp)
-                    Text(text = "• 波纹扩散 (ripple)", fontSize = 13.sp)
+                    Text(text = "• 淡入淡出效果", fontSize = 13.sp)
+                    Text(text = "• 可自定义持续时间", fontSize = 13.sp)
+                    Text(text = "• 可自定义背景颜色", fontSize = 13.sp)
+                    Text(text = "• 可自定义悬浮窗高度", fontSize = 13.sp)
                 }
             }
 
@@ -220,39 +221,66 @@ fun OverlaySettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "点击下方按钮测试不同的动效类型",
+                        text = "点击下方按钮测试不同配置的淡入淡出动效",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
 
                     Button(
                         onClick = {
-                            sendTestBroadcast(context, AnimationType.FADE)
+                            sendTestBroadcast(
+                                context,
+                                durationMillis = 1500L,
+                                backgroundColor = 0xFFFF69B4.toInt(), // 粉红色
+                                heightDp = 50,
+                                particleSpeed = 4.5f
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = hasOverlayPermission && isServiceRunning
+                        enabled = hasOverlayPermission && isServiceRunning,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = androidx.compose.ui.graphics.Color(0xFFFF69B4)
+                        )
                     ) {
-                        Text("测试：淡入淡出")
+                        Text("测试：粉红色 (1500ms, 50dp, 慢速)")
                     }
 
                     Button(
                         onClick = {
-                            sendTestBroadcast(context, AnimationType.SLIDE)
+                            sendTestBroadcast(
+                                context,
+                                durationMillis = 2000L,
+                                backgroundColor = 0xFFADD8E6.toInt(), // 淡蓝色
+                                heightDp = 80,
+                                particleSpeed = 6.5f
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = hasOverlayPermission && isServiceRunning
+                        enabled = hasOverlayPermission && isServiceRunning,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = androidx.compose.ui.graphics.Color(0xFFADD8E6)
+                        )
                     ) {
-                        Text("测试：从顶部滑入")
+                        Text("测试：淡蓝色 (2000ms, 80dp, 中速)")
                     }
 
                     Button(
                         onClick = {
-                            sendTestBroadcast(context, AnimationType.RIPPLE)
+                            sendTestBroadcast(
+                                context,
+                                durationMillis = 3000L,
+                                backgroundColor = 0xFF00CED1.toInt(), // 青色
+                                heightDp = 100,
+                                particleSpeed = 8.5f
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = hasOverlayPermission && isServiceRunning
+                        enabled = hasOverlayPermission && isServiceRunning,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = androidx.compose.ui.graphics.Color(0xFF00CED1)
+                        )
                     ) {
-                        Text("测试：波纹扩散")
+                        Text("测试：青色 (3000ms, 100dp, 快速)")
                     }
                 }
             }
@@ -278,11 +306,6 @@ fun OverlaySettingsScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "Extra 参数：", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        text = "• animation_type (String): fade/slide/ripple",
-                        fontSize = 12.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                    Text(
                         text = "• duration (Long): 持续时间（毫秒）",
                         fontSize = 12.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -293,7 +316,12 @@ fun OverlaySettingsScreen(
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                     )
                     Text(
-                        text = "• message (String): 消息内容（可选）",
+                        text = "• height_dp (Int): 悬浮窗高度（dp）",
+                        fontSize = 12.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                    Text(
+                        text = "• particle_speed (Float): 粒子速度（4.0-9.0）",
                         fontSize = 12.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                     )
@@ -306,19 +334,22 @@ fun OverlaySettingsScreen(
 /**
  * 发送测试广播
  */
-private fun sendTestBroadcast(context: android.content.Context, type: AnimationType) {
+private fun sendTestBroadcast(
+    context: android.content.Context,
+    durationMillis: Long,
+    backgroundColor: Int,
+    heightDp: Int,
+    particleSpeed: Float
+) {
     val intent = Intent(KineticBroadcastReceiver.ACTION_SHOW_KINETIC).apply {
         // 重要：Android 8.0+ 需要显式指定接收器组件
         setPackage(context.packageName)
         setClassName(context.packageName, "com.lenovo.levoice.caption.KineticBroadcastReceiver")
 
-        putExtra(AnimationConfig.EXTRA_ANIMATION_TYPE, when (type) {
-            AnimationType.FADE -> AnimationConfig.TYPE_FADE
-            AnimationType.SLIDE -> AnimationConfig.TYPE_SLIDE
-            AnimationType.RIPPLE -> AnimationConfig.TYPE_RIPPLE
-        })
-        putExtra(AnimationConfig.EXTRA_DURATION, 3000L)
-        putExtra(AnimationConfig.EXTRA_BACKGROUND_COLOR, 0x80FF5722.toInt()) // 半透明橙色
+        putExtra(AnimationConfig.EXTRA_DURATION, durationMillis)
+        putExtra(AnimationConfig.EXTRA_BACKGROUND_COLOR, backgroundColor)
+        putExtra(AnimationConfig.EXTRA_HEIGHT_DP, heightDp)
+        putExtra(AnimationConfig.EXTRA_PARTICLE_SPEED, particleSpeed)
     }
     context.sendBroadcast(intent)
 }
