@@ -64,11 +64,19 @@ class MainActivity : ComponentActivity() {
                 val showRecordingsList by viewModel.showRecordingsList.collectAsState()
                 val currentPlayingFile by viewModel.currentPlayingFile.collectAsState()
                 val refreshTrigger by viewModel.refreshTrigger.collectAsState()
+                val showOverlaySettings by viewModel.showOverlaySettings.collectAsState()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val showTranscription by viewModel.showTranscription.collectAsState()
 
-                    if (showRecordingsList) {
+                    if (showOverlaySettings) {
+                        OverlaySettingsScreen(
+                            onBack = {
+                                viewModel.setShowOverlaySettings(false)
+                            },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    } else if (showRecordingsList) {
                         val recordings by remember(refreshTrigger) {
                             derivedStateOf { viewModel.getRecordings() }
                         }
@@ -149,6 +157,9 @@ class MainActivity : ComponentActivity() {
                             onShowGallery = {
                                 val intent = Intent(this@MainActivity, GalleryActivity::class.java)
                                 startActivity(intent)
+                            },
+                            onOverlaySettings = {
+                                viewModel.setShowOverlaySettings(true)
                             },
                             modifier = Modifier.padding(innerPadding)
                         )

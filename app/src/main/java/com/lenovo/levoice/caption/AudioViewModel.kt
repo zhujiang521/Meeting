@@ -24,6 +24,9 @@ class AudioViewModel(application: Application) : AndroidViewModel(application) {
     private val _showTranscription = MutableStateFlow(false)
     val showTranscription: StateFlow<Boolean> = _showTranscription
 
+    private val _showOverlaySettings = MutableStateFlow(false)
+    val showOverlaySettings: StateFlow<Boolean> = _showOverlaySettings
+
     init {
         // Set recording directory
         val recordingDir = File(application.getExternalFilesDir(null), "AudioRecordings")
@@ -78,6 +81,10 @@ class AudioViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopTranscription() {
         speechRecognitionManager.stopRecognition()
+    }
+
+    fun setShowOverlaySettings(show: Boolean) {
+        _showOverlaySettings.value = show
     }
 
     override fun onCleared() {

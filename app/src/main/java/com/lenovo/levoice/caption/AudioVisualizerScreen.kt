@@ -30,10 +30,12 @@ fun AudioVisualizerScreen(
     onStopCapture: () -> Unit,
     onShowRecordings: () -> Unit,
     onShowGallery: () -> Unit,
+    onOverlaySettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape =
+        configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     if (isLandscape) {
         // Landscape layout
@@ -147,6 +149,19 @@ fun AudioVisualizerScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                OutlinedButton(
+                    onClick = onOverlaySettings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(
+                        text = "悬浮窗设置",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     } else {
@@ -248,6 +263,19 @@ fun AudioVisualizerScreen(
             ) {
                 Text(
                     text = "图片展示",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            OutlinedButton(
+                onClick = onOverlaySettings,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text(
+                    text = "悬浮窗设置",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
