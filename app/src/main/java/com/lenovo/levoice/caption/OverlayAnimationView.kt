@@ -77,9 +77,9 @@ class OverlayAnimationView @JvmOverloads constructor(
         var x: Float,
         var y: Float,
         val size: Float,
-        val speed: Float,
+        var speed: Float,
         val angle: Float,
-        val rotationSpeed: Float,
+        var rotationSpeed: Float,
         var rotation: Float,
         val color: Int,
         val alpha: Float,
@@ -91,7 +91,7 @@ class OverlayAnimationView @JvmOverloads constructor(
     )
 
     private enum class ParticleShape {
-        CIRCLE, SQUARE
+        CIRCLE, SQUARE, TRIANGLE
     }
 
     init {
@@ -203,14 +203,14 @@ class OverlayAnimationView @JvmOverloads constructor(
             val speedVariation = config.particleSpeed * 0.2f
             val speed = config.particleSpeed + (Random.nextFloat() * 2 - 1) * speedVariation
             val angle = 0f // 不需要角度
-            val rotationSpeed = 0f // 正方形不旋转
+            val rotationSpeed = Random.nextFloat() * 2f + 1f // 三角形旋转速度：1-3度/帧
 
             // 使用传入的背景色，只改变透明度（0.3-0.9）
             val particleAlpha = Random.nextFloat() * 0.6f + 0.3f
             val color = Color.argb((particleAlpha * 255).toInt(), red, green, blue)
 
             val alpha = 1.0f // 粒子本身的alpha已经在color中设置，这里使用1.0
-            val shape = ParticleShape.SQUARE // 全部是正方形
+            val shape = ParticleShape.TRIANGLE // 全部是三角形
             val orbitRadius = 0f // 不需要轨道
             val orbitSpeed = 0f
 
@@ -265,28 +265,54 @@ class OverlayAnimationView @JvmOverloads constructor(
      */
     private fun updateParticles(deltaTime: Float) {
         particles.forEachIndexed { index, particle ->
-            // 向下滑落运动（基于实际时间步长，确保速度均匀）
-            val pixelsPerSecond = particle.speed * 60f // speed 原本是"每帧像素"，转换为"每秒像素"
-            particle.y += pixelsPerSecond * deltaTime
-
-            // 轻微的左右摆动
-            particle.x += sin(particleTime * 2f) * 0.5f
-
-            // 正方形不旋转，保持水平
-            // particle.rotation 保持为 0
-
             // 计算当前X位置对应的弧线高度
             val normalizedX = (particle.x / width.toFloat() - 0.5f) * 2f
             val arcHeight = height * (1f - normalizedX * normalizedX)
 
-            // 粒子超出弧线边界后从顶部重新出现
-            if (particle.y > arcHeight + particle.size) {
-                particle.y = -particle.size
-                // 重新计算X坐标，保持均匀分布
-                val segmentWidth = width.toFloat() / particles.size
-                val baseX = index * segmentWidth
-                val randomOffset = Random.nextFloat() * segmentWidth
-                particle.x = baseX + randomOffset
+            // 判断粒子状态：向下还是向上
+            val isGoingDown = particle.speed > 0
+
+            if (isGoingDown) {
+                // 向下滑落阶段
+                val pixelsPerSecond = particle.speed * 60f
+                particle.y += pixelsPerSecond * deltaTime
+
+                // 轻微的左右摆动
+                particle.x += sin(particleTime * 2f) * 0.5f
+
+                // 三角形旋转（下降时顺时针旋转）
+                particle.rotation += particle.rotationSpeed * deltaTime * 60f
+
+                // 到达底部后，反转速度，开始上升
+                if (particle.y >= arcHeight + particle.size) {
+                    particle.speed = -particle.speed // 反转速度，开始上升
+                    particle.rotationSpeed = -particle.rotationSpeed // 反转旋转方向
+                }
+            } else {
+                // 向上飞升阶段
+                val pixelsPerSecond = particle.speed * 60f
+                particle.y += pixelsPerSecond * deltaTime
+
+                // 轻微的左右摆动（保持一致）
+                particle.x += sin(particleTime * 2f) * 0.5f
+
+                // 三角形反向旋转（上升时逆时针旋转）
+                particle.rotation += particle.rotationSpeed * deltaTime * 60f
+
+                // 回到顶部后，重置粒子
+                if (particle.y <= -particle.size) {
+                    // 重新计算X坐标，保持均匀分布
+                    val segmentWidth = width.toFloat() / particles.size
+                    val baseX = index * segmentWidth
+                    val randomOffset = Random.nextFloat() * segmentWidth
+                    particle.x = baseX + randomOffset
+                    particle.y = -particle.size
+
+                    // 恢复向下运动
+                    particle.speed = kotlin.math.abs(particle.speed)
+                    particle.rotationSpeed = kotlin.math.abs(particle.rotationSpeed)
+                    particle.rotation = 0f
+                }
             }
         }
     }
@@ -370,10 +396,17 @@ class OverlayAnimationView @JvmOverloads constructor(
 
             canvas.save()
             canvas.translate(particle.x, particle.y)
+            canvas.rotate(particle.rotation)
 
-            // 全部绘制为正方形
+            // 全部绘制为三角形（等边三角形，顶点朝上）
             val halfSize = particle.size / 2
-            canvas.drawRect(-halfSize, -halfSize, halfSize, halfSize, particlePaint)
+            val path = android.graphics.Path().apply {
+                moveTo(0f, -halfSize) // 顶点
+                lineTo(-halfSize, halfSize) // 左下角
+                lineTo(halfSize, halfSize) // 右下角
+                close()
+            }
+            canvas.drawPath(path, particlePaint)
 
             canvas.restore()
         }
